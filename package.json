@@ -2,6 +2,7 @@
   "name": "student-management",
   "version": "1.0.0",
   "private": true,
+  "homepage": "./",
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "react": "^18.0.0",
