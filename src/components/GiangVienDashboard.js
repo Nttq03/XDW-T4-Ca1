@@ -1,193 +1,211 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { FaSignOutAlt, FaBook, FaBuilding, FaClock, FaSearch, FaEdit, FaSave, FaTimes, FaUsers } from 'react-icons/fa';
 
 function GiangVienDashboard() {
   const [subjects, setSubjects] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [rooms, setRooms] = useState([]);
   const [selectedRoom, setSelectedRoom] = useState(null);
+  const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [tuKhoaTimKiem, setTuKhoaTimKiem] = useState('');
   const [dangChinhSua, setDangChinhSua] = useState(false);
   const [diemTamThoi, setDiemTamThoi] = useState({});
   const navigate = useNavigate();
 
-  // Dữ liệu mẫu cho môn học và phòng học
-  const sampleData = [
-    {
-      id: 1,
-      name: 'Lập trình Web',
-      code: 'WEB101',
-      rooms: [
-        {
-          id: 'A101',
-          name: 'Phòng A101',
-          sessions: [
-            { id: 1, time: 'Ca 1 (7:30 - 9:30)' },
-            { id: 2, time: 'Ca 2 (9:45 - 11:45)' },
-            { id: 3, time: 'Ca 3 (13:30 - 15:30)' }
-          ]
-        },
-        {
-          id: 'A102',
-          name: 'Phòng A102',
-          sessions: [
-            { id: 1, time: 'Ca 1 (7:30 - 9:30)' },
-            { id: 2, time: 'Ca 2 (9:45 - 11:45)' }
-          ]
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'Cơ sở dữ liệu',
-      code: 'DBS101',
-      rooms: [
-        {
-          id: 'B201',
-          name: 'Phòng B201',
-          sessions: [
-            { id: 1, time: 'Ca 1 (7:30 - 9:30)' },
-            { id: 3, time: 'Ca 3 (13:30 - 15:30)' }
-          ]
-        }
-      ]
-    }
-  ];
+  const token = localStorage.getItem('token');
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://apiwebsa.onrender.com/api';
 
-  // Dữ liệu mẫu cho sinh viên theo ca học
-  const sampleStudents = {
-    'WEB101-A101-1': [
-      { id: 1, mssv: '20001', hoten: 'Nguyễn Văn A', diemGK: 8.5, diemCK: 7.5 },
-      { id: 2, mssv: '20002', hoten: 'Trần Thị B', diemGK: 7.0, diemCK: 8.0 }
-    ],
-    'WEB101-A101-2': [
-      { id: 3, mssv: '20003', hoten: 'Lê Văn C', diemGK: 9.0, diemCK: 8.5 },
-      { id: 4, mssv: '20004', hoten: 'Phạm Thị D', diemGK: 8.0, diemCK: 8.0 }
-    ],
-    'WEB101-A101-3': [
-      { id: 5, mssv: '20005', hoten: 'Đặng Văn E', diemGK: 7.5, diemCK: 7.0 },
-      { id: 6, mssv: '20006', hoten: 'Ngô Thị F', diemGK: 9.0, diemCK: 9.5 }
-    ],
-    'WEB101-A102-1': [
-      { id: 7, mssv: '20007', hoten: 'Hoàng Văn G', diemGK: 6.5, diemCK: 7.5 },
-      { id: 8, mssv: '20008', hoten: 'Phan Thị H', diemGK: 8.0, diemCK: 8.5 }
-    ],
-    'WEB101-A102-2': [
-      { id: 9, mssv: '20009', hoten: 'Vũ Văn I', diemGK: 7.0, diemCK: 7.0 },
-      { id: 10, mssv: '20010', hoten: 'Bùi Thị K', diemGK: 6.0, diemCK: 6.5 }
-    ],
-    'DBS101-B201-1': [
-      { id: 11, mssv: '20011', hoten: 'Lý Văn L', diemGK: 8.5, diemCK: 8.0 },
-      { id: 12, mssv: '20012', hoten: 'Nguyễn Thị M', diemGK: 7.5, diemCK: 7.5 }
-    ],
-    'DBS101-B201-3': [
-      { id: 13, mssv: '20013', hoten: 'Đoàn Văn N', diemGK: 9.5, diemCK: 9.0 },
-      { id: 14, mssv: '20014', hoten: 'Trịnh Thị O', diemGK: 8.0, diemCK: 8.5 }
-    ]
-  };
-
+  // Fetch subjects taught by the lecturer
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
         setLoading(true);
-        setSubjects(sampleData);
-        setLoading(false);
+        const response = await axios.get(`${API_BASE_URL}/giangvien/lophoc`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // Group by subject (monhoc) to avoid duplicates
+        const uniqueSubjects = Array.from(
+          new Map(response.data.map((item) => [item.monhoc_id, {
+            id: item.monhoc_id,
+            name: item.tenmon,
+            code: item.monhoc_id, // Using monhoc_id as code
+          }])).values()
+        );
+        setSubjects(uniqueSubjects);
       } catch (err) {
         setError('Không thể tải danh sách môn học');
+      } finally {
         setLoading(false);
       }
     };
-
     fetchSubjects();
-  }, []);
+  }, [token]);
 
-  const handleSubjectSelect = (subject) => {
+  // Handle subject selection
+  const handleSubjectSelect = async (subject) => {
     setSelectedSubject(subject);
     setSelectedRoom(null);
     setSelectedSession(null);
     setStudents([]);
     setTuKhoaTimKiem('');
-  };
-
-  const handleRoomSelect = (room) => {
-    setSelectedRoom(room);
-    setSelectedSession(null);
-    setStudents([]);
-    setTuKhoaTimKiem('');
-  };
-
-  const handleSessionSelect = async (sessionId) => {
     try {
       setLoading(true);
-      const studentKey = `${selectedSubject.code}-${selectedRoom.id}-${sessionId}`;
-      setStudents(sampleStudents[studentKey] || []);
-      setSelectedSession(sessionId);
-      setLoading(false);
+      const response = await axios.get(`${API_BASE_URL}/giangvien/lophoc`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const filteredRooms = response.data
+        .filter((item) => item.monhoc_id === subject.id)
+        .map((item) => ({
+          id: item.lophoc_id,
+          name: `Lớp ${item.lophoc_id}`, // Customize as needed
+        }));
+      setRooms(filteredRooms);
     } catch (err) {
-      setError('Không thể tải danh sách sinh viên');
+      setError('Không thể tải danh sách lớp học');
+    } finally {
       setLoading(false);
     }
   };
 
+  // Handle room (class) selection
+  const handleRoomSelect = async (room) => {
+    setSelectedRoom(room);
+    setSelectedSession(null);
+    setStudents([]);
+    setTuKhoaTimKiem('');
+    try {
+      setLoading(true);
+      // For simplicity, sessions can be fetched from the same endpoint
+      // Assuming sessions are tied to hocky or namhoc, or static for demo
+      const response = await axios.get(`${API_BASE_URL}/giangvien/lophoc`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const classData = response.data.find((item) => item.lophoc_id === room.id);
+      const sessions = [
+        { id: 1, time: `Học kỳ ${classData.hocky} - ${classData.namhoc}` },
+      ];
+      setSessions(sessions);
+    } catch (err) {
+      setError('Không thể tải danh sách ca học');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle session selection and fetch students
+  const handleSessionSelect = async (sessionId) => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/giangvien/lophoc/${selectedRoom.id}/sinhvien`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setStudents(response.data.map((sv) => ({
+        id: sv.sinhvien_id,
+        mssv: sv.masv,
+        hoten: sv.hoten,
+        diemGK: sv.diem_giua_ky || 0,
+        diemCK: sv.diem_cuoi_ky || 0,
+      })));
+      setSelectedSession(sessionId);
+    } catch (err) {
+      setError('Không thể tải danh sách sinh viên');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle logout
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     navigate('/');
   };
 
-  const sinhVienDaLoc = students.filter(sv => 
-    sv.mssv.toLowerCase().includes(tuKhoaTimKiem.toLowerCase()) ||
-    sv.hoten.toLowerCase().includes(tuKhoaTimKiem.toLowerCase())
+  // Filter students based on search keyword
+  const sinhVienDaLoc = students.filter(
+    (sv) =>
+      sv.mssv.toLowerCase().includes(tuKhoaTimKiem.toLowerCase()) ||
+      sv.hoten.toLowerCase().includes(tuKhoaTimKiem.toLowerCase())
   );
 
+  // Start editing grades
   const batDauChinhSua = () => {
     setDangChinhSua(true);
     const diemMoi = {};
-    students.forEach(sv => {
+    students.forEach((sv) => {
       diemMoi[sv.id] = {
         diemGK: sv.diemGK,
-        diemCK: sv.diemCK
+        diemCK: sv.diemCK,
       };
     });
     setDiemTamThoi(diemMoi);
   };
 
-  const luuDiem = () => {
-    setDangChinhSua(false);
-    // TODO: Gọi API lưu điểm
-    console.log('Đã lưu điểm:', diemTamThoi);
+  // Save grades
+  const luuDiem = async () => {
+    try {
+      setLoading(true);
+      const danhSachDiem = Object.entries(diemTamThoi).map(([sinhvien_id, diem]) => ({
+        sinhvien_id,
+        diem_giua_ky: diem.diemGK,
+        diem_cuoi_ky: diem.diemCK,
+        ghi_chu: '',
+      }));
+      await axios.post(
+        `${API_BASE_URL}/giangvien/diem`,
+        { lophoc_id: selectedRoom.id, danh_sach_diem: danhSachDiem },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setStudents((prev) =>
+        prev.map((sv) => ({
+          ...sv,
+          diemGK: diemTamThoi[sv.id].diemGK,
+          diemCK: diemTamThoi[sv.id].diemCK,
+        }))
+      );
+      setDangChinhSua(false);
+      setDiemTamThoi({});
+    } catch (err) {
+      setError('Không thể lưu điểm');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Cancel editing
   const huyChinhSua = () => {
     setDangChinhSua(false);
     setDiemTamThoi({});
   };
 
+  // Update temporary grades
   const capNhatDiem = (svId, loaiDiem, giaTri) => {
-    setDiemTamThoi(prev => ({
+    setDiemTamThoi((prev) => ({
       ...prev,
       [svId]: {
         ...prev[svId],
-        [loaiDiem]: parseFloat(giaTri) || 0
-      }
+        [loaiDiem]: parseFloat(giaTri) || 0,
+      },
     }));
   };
 
-  if (loading) return (
-    <div className="flex justify-center items-center min-h-screen">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
-    </div>
-  );
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700"></div>
+      </div>
+    );
+  }
 
-  if (error) return (
-    <div className="text-center text-red-600 p-4">
-      Lỗi: {error}
-    </div>
-  );
+  if (error) {
+    return <div className="text-center text-red-600 p-4">Lỗi: {error}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
@@ -213,13 +231,13 @@ function GiangVienDashboard() {
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* Danh sách môn học */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 transition-all duration-300 ease-in-out">
-          {subjects.map(subject => (
+          {subjects.map((subject) => (
             <div
               key={subject.id}
               onClick={() => handleSubjectSelect(subject)}
               className={`p-4 rounded-lg shadow cursor-pointer transition-all duration-300 ease-in-out transform hover:scale-105 ${
-                selectedSubject?.id === subject.id 
-                  ? 'bg-green-50 border-2 border-green-500' 
+                selectedSubject?.id === subject.id
+                  ? 'bg-green-50 border-2 border-green-500'
                   : 'bg-white hover:bg-gray-50 hover:shadow-md'
               }`}
             >
@@ -234,15 +252,15 @@ function GiangVienDashboard() {
           ))}
         </div>
 
-        {/* Danh sách phòng học */}
+        {/* Danh sách lớp học */}
         {selectedSubject && (
           <div className="mt-6 transition-all duration-300 ease-in-out transform">
             <h3 className="text-lg font-medium mb-4 flex items-center">
               <FaBuilding className="text-green-600 mr-2" />
-              Phòng học - {selectedSubject.name}
+              Lớp học - {selectedSubject.name}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {selectedSubject.rooms.map(room => (
+              {rooms.map((room) => (
                 <div
                   key={room.id}
                   onClick={() => handleRoomSelect(room)}
@@ -267,7 +285,7 @@ function GiangVienDashboard() {
               Ca học - {selectedRoom.name}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {selectedRoom.sessions.map(session => (
+              {sessions.map((session) => (
                 <div
                   key={session.id}
                   onClick={() => handleSessionSelect(session.id)}
@@ -365,12 +383,8 @@ function GiangVienDashboard() {
                       {sinhVienDaLoc.length > 0 ? (
                         sinhVienDaLoc.map((student, index) => (
                           <tr key={student.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {index + 1}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {student.mssv}
-                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.mssv}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                               {student.hoten}
                             </td>

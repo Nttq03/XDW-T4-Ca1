@@ -1,55 +1,119 @@
 import React, { useState, useEffect } from 'react';
-import { FaUser, FaBook, FaGraduationCap, FaSearch } from 'react-icons/fa';
+import { FaUser, FaBook, FaSearch } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 function BangDieuKhienSinhVien() {
   const navigate = useNavigate();
-
-  const [thongTinSinhVien, setThongTinSinhVien] = useState({
-    hoTen: 'Nguyễn Văn A',
-    maSinhVien: 'SV001',
-    lop: 'K15',
-    nganh: 'Công nghệ thông tin',
-    email: 'sv001@example.com',
-    soDienThoai: '0123456789'
-  });
-
-  const [monHoc, setMonHoc] = useState([
-    { id: 1, ten: 'Lập trình Web', ma: 'IT001', tinChi: 3, quaTrinh: 8.5, giuaKy: 7.5, cuoiKy: 8.0, tongKet: 8.0 },
-    { id: 2, ten: 'Cơ sở dữ liệu', ma: 'IT002', tinChi: 3, quaTrinh: 7.8, giuaKy: 8.2, cuoiKy: 7.5, tongKet: 7.8 },
-    { id: 3, ten: 'Mạng máy tính', ma: 'IT003', tinChi: 3, quaTrinh: 9.0, giuaKy: 8.5, cuoiKy: 9.5, tongKet: 9.0 },
-    { id: 4, ten: 'Phân tích thiết kế hệ thống', ma: 'IT004', tinChi: 3, quaTrinh: 8.2, giuaKy: 8.0, cuoiKy: 8.5, tongKet: 8.2 },
-    { id: 5, ten: 'Lập trình hướng đối tượng', ma: 'IT005', tinChi: 3, quaTrinh: 4.5, giuaKy: 4.0, cuoiKy: 4.2, tongKet: 4.2 },
-    { id: 6, ten: 'Cấu trúc dữ liệu và giải thuật', ma: 'IT006', tinChi: 3, quaTrinh: 6.5, giuaKy: 7.0, cuoiKy: 6.8, tongKet: 6.8 }
-  ]);
-
+  const [thongTinSinhVien, setThongTinSinhVien] = useState({});
+  const [monHoc, setMonHoc] = useState([]);
   const [tuKhoa, setTuKhoa] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
+  const token = localStorage.getItem('token');
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://apiwebsa.onrender.com/api';
+
+  // Fetch student information and enrolled subjects
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch student profile
+        const profileResponse = await axios.get(`${API_BASE_URL}/sinhvien/thongtin`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = profileResponse.data[0];
+        setThongTinSinhVien({
+          hoTen: data.hoten,
+          maSinhVien: data.masv,
+          lop: data.lophoc_id || 'N/A',
+          nganh: data.tenkhoa || 'N/A',
+          email: data.email || 'N/A',
+          soDienThoai: data.sdt || 'N/A',
+        });
+
+        // Fetch enrolled subjects and grades
+        const subjectsResponse = await axios.get(`${API_BASE_URL}/sinhvien/lophoc`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setMonHoc(
+          subjectsResponse.data.map((item, index) => ({
+            id: index + 1,
+            ten: item.tenmon,
+            ma: item.monhoc_id,
+            tinChi: item.tinchi || 3, // Default to 3 if not provided
+            quaTrinh: item.diem_qua_trinh || 0,
+            giuaKy: item.diem_giua_ky || 0,
+            cuoiKy: item.diem_cuoi_ky || 0,
+            tongKet: item.diem_tong_ket || calculateTongKet(item), // Calculate if not provided
+          }))
+        );
+      } catch (err) {
+        setError('Không thể tải dữ liệu');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [token]);
+
+  // Helper function to calculate tongKet (if not provided by backend)
+  const calculateTongKet = (item) => {
+    const quaTrinh = item.diem_qua_trinh || 0;
+    const giuaKy = item.diem_giua_ky || 0;
+    const cuoiKy = item.diem_cuoi_ky || 0;
+    // Example formula: 20% quaTrinh + 30% giuaKy + 50% cuoiKy
+    return ((quaTrinh * 0.2 + giuaKy * 0.3 + cuoiKy * 0.5) || 0).toFixed(1);
+  };
+
+  // Handle logout
   const dangXuat = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     navigate('/');
   };
 
-  const monHocLoc = monHoc.filter(mh =>
-    mh.ten.toLowerCase().includes(tuKhoa.toLowerCase()) ||
-    mh.ma.toLowerCase().includes(tuKhoa.toLowerCase())
+  // Filter subjects based on search keyword
+  const monHocLoc = monHoc.filter(
+    (mh) =>
+      mh.ten.toLowerCase().includes(tuKhoa.toLowerCase()) ||
+      mh.ma.toLowerCase().includes(tuKhoa.toLowerCase())
   );
 
+  // Color coding for grades
   const mauDiem = (diem) => {
-    return diem >= 8.5 ? 'text-green-600' :
-           diem >= 7.0 ? 'text-blue-600' :
-           diem >= 5.5 ? 'text-yellow-600' :
-           'text-red-600';
+    return diem >= 8.5
+      ? 'text-green-600'
+      : diem >= 7.0
+      ? 'text-blue-600'
+      : diem >= 5.5
+      ? 'text-yellow-600'
+      : 'text-red-600';
   };
 
+  // Result status
   const ketQua = (diem) => {
     return diem >= 5 ? 'Đạt' : 'Không đạt';
   };
 
+  // Color coding for result
   const mauKetQua = (diem) => {
     return diem >= 5 ? 'text-green-600' : 'text-red-600';
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center text-red-600 p-4">Lỗi: {error}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
@@ -82,14 +146,26 @@ function BangDieuKhienSinhVien() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <p className="text-gray-600"><span className="font-medium">Họ tên:</span> {thongTinSinhVien.hoTen}</p>
-                <p className="text-gray-600"><span className="font-medium">Mã sinh viên:</span> {thongTinSinhVien.maSinhVien}</p>
-                <p className="text-gray-600"><span className="font-medium">Lớp:</span> {thongTinSinhVien.lop}</p>
+                <p className="text-gray-600">
+                  <span className="font-medium">Họ tên:</span> {thongTinSinhVien.hoTen || 'N/A'}
+                </p>
+                <p className="text-gray-600">
+                  <span className="font-medium">Mã sinh viên:</span> {thongTinSinhVien.maSinhVien || 'N/A'}
+                </p>
+                <p className="text-gray-600">
+                  <span className="font-medium">Lớp:</span> {thongTinSinhVien.lop || 'N/A'}
+                </p>
               </div>
               <div className="space-y-2">
-                <p className="text-gray-600"><span className="font-medium">Ngành:</span> {thongTinSinhVien.nganh}</p>
-                <p className="text-gray-600"><span className="font-medium">Email:</span> {thongTinSinhVien.email}</p>
-                <p className="text-gray-600"><span className="font-medium">SĐT:</span> {thongTinSinhVien.soDienThoai}</p>
+                <p className="text-gray-600">
+                  <span className="font-medium">Ngành:</span> {thongTinSinhVien.nganh || 'N/A'}
+                </p>
+                <p className="text-gray-600">
+                  <span className="font-medium">Email:</span> {thongTinSinhVien.email || 'N/A'}
+                </p>
+                <p className="text-gray-600">
+                  <span className="font-medium">SĐT:</span> {thongTinSinhVien.soDienThoai || 'N/A'}
+                </p>
               </div>
             </div>
           </div>
@@ -114,7 +190,7 @@ function BangDieuKhienSinhVien() {
                 />
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -137,19 +213,25 @@ function BangDieuKhienSinhVien() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mh.ten}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{mh.tinChi}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`font-medium ${mauDiem(mh.quaTrinh)}`}>{mh.quaTrinh}</span>
+                          <span className={`font-medium ${mauDiem(mh.quaTrinh)}`}>
+                            {mh.quaTrinh || '-'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`font-medium ${mauDiem(mh.giuaKy)}`}>{mh.giuaKy}</span>
+                          <span className={`font-medium ${mauDiem(mh.giuaKy)}`}>{mh.giuaKy || '-'}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`font-medium ${mauDiem(mh.cuoiKy)}`}>{mh.cuoiKy}</span>
+                          <span className={`font-medium ${mauDiem(mh.cuoiKy)}`}>{mh.cuoiKy || '-'}</span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`font-medium ${mauDiem(mh.tongKet)}`}>{mh.tongKet}</span>
+                          <span className={`font-medium ${mauDiem(mh.tongKet)}`}>
+                            {mh.tongKet || '-'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`font-medium ${mauKetQua(mh.tongKet)}`}>{ketQua(mh.tongKet)}</span>
+                          <span className={`font-medium ${mauKetQua(mh.tongKet)}`}>
+                            {mh.tongKet ? ketQua(mh.tongKet) : '-'}
+                          </span>
                         </td>
                       </tr>
                     ))

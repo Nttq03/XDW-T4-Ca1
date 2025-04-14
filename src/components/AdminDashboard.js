@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaSignOutAlt, FaUniversity, FaBook, FaUsers, FaChevronRight, FaSearch } from 'react-icons/fa';
+import axios from 'axios';
 
 function BangDieuKhienAdmin() {
   const navigate = useNavigate();
@@ -8,101 +9,183 @@ function BangDieuKhienAdmin() {
   const [monHocDuocChon, setMonHocDuocChon] = useState(null);
   const [lopDuocChon, setLopDuocChon] = useState(null);
   const [tuKhoaTimKiem, setTuKhoaTimKiem] = useState('');
+  const [danhSachKhoa, setDanhSachKhoa] = useState([]);
+  const [monHoc, setMonHoc] = useState([]);
+  const [lopHoc, setLopHoc] = useState([]);
+  const [sinhVien, setSinhVien] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Dữ liệu mẫu
-  const danhSachKhoa = [
-    {
-      id: 1,
-      ten: 'Công nghệ thông tin',
-      monHoc: [
-        {
-          id: 1,
-          ten: 'Lập trình Web',
-          ma: 'IT001',
-          lop: [
-            {
-              id: 1,
-              ten: 'Lớp A',
-              sinhVien: [
-                { id: 1, hoTen: 'Nguyễn Văn A', maSinhVien: 'SV001', quaTrinh: 8.5, giuaKy: 7.5, cuoiKy: 8.0, tongKet: 8.0 },
-                { id: 2, hoTen: 'Trần Thị B', maSinhVien: 'SV002', quaTrinh: 7.8, giuaKy: 8.2, cuoiKy: 7.5, tongKet: 7.8 }
-              ]
-            },
-            {
-              id: 2,
-              ten: 'Lớp B',
-              sinhVien: [
-                { id: 3, hoTen: 'Lê Văn C', maSinhVien: 'SV003', quaTrinh: 9.0, giuaKy: 8.5, cuoiKy: 9.5, tongKet: 9.0 },
-                { id: 4, hoTen: 'Phạm Thị D', maSinhVien: 'SV004', quaTrinh: 8.2, giuaKy: 8.0, cuoiKy: 8.5, tongKet: 8.2 }
-              ]
-            }
-          ]
-        },
-        {
-          id: 2,
-          ten: 'Cơ sở dữ liệu',
-          ma: 'IT002',
-          lop: [
-            {
-              id: 1,
-              ten: 'Lớp A',
-              sinhVien: [
-                { id: 1, hoTen: 'Nguyễn Văn A', maSinhVien: 'SV001', quaTrinh: 7.5, giuaKy: 8.0, cuoiKy: 7.8, tongKet: 7.8 },
-                { id: 2, hoTen: 'Trần Thị B', maSinhVien: 'SV002', quaTrinh: 8.2, giuaKy: 7.5, cuoiKy: 8.0, tongKet: 8.0 }
-              ]
-            }
-          ]
+  const token = localStorage.getItem('token');
+  const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://apiwebsa.onrender.com/api';
+
+  // Fetch departments on mount
+  useEffect(() => {
+    const fetchKhoa = async () => {
+      try {
+        setLoading(true);
+        const response = await axios.get(`${API_BASE_URL}/admin/khoa`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setDanhSachKhoa(
+          response.data.map((khoa) => ({
+            id: khoa.khoa_id,
+            ten: khoa.tenkhoa,
+          }))
+        );
+      } catch (err) {
+        setError('Không thể tải danh sách khoa');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchKhoa();
+  }, [token]);
+
+  // Fetch subjects when a department is selected
+  useEffect(() => {
+    if (khoaDuocChon) {
+      const fetchMonHoc = async () => {
+        try {
+          setLoading(true);
+          const response = await axios.get(`${API_BASE_URL}/admin/khoa/${khoaDuocChon.id}/monhoc`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setMonHoc(
+            response.data.map((mon) => ({
+              id: mon.monhoc_id,
+              ten: mon.tenmon,
+              ma: mon.mamon,
+            }))
+          );
+        } catch (err) {
+          setError('Không thể tải danh sách môn học');
+        } finally {
+          setLoading(false);
         }
-      ]
-    },
-    {
-      id: 2,
-      ten: 'Khoa học máy tính',
-      monHoc: [
-        {
-          id: 1,
-          ten: 'Trí tuệ nhân tạo',
-          ma: 'CS001',
-          lop: [
-            {
-              id: 1,
-              ten: 'Lớp A',
-              sinhVien: [
-                { id: 1, hoTen: 'Nguyễn Văn A', maSinhVien: 'SV001', quaTrinh: 8.0, giuaKy: 8.5, cuoiKy: 8.2, tongKet: 8.2 },
-                { id: 2, hoTen: 'Trần Thị B', maSinhVien: 'SV002', quaTrinh: 7.8, giuaKy: 8.0, cuoiKy: 7.5, tongKet: 7.8 }
-              ]
-            }
-          ]
-        }
-      ]
+      };
+      fetchMonHoc();
+    } else {
+      setMonHoc([]);
+      setMonHocDuocChon(null);
     }
-  ];
+  }, [khoaDuocChon, token]);
 
+  // Fetch classes when a subject is selected
+  useEffect(() => {
+    if (monHocDuocChon) {
+      const fetchLopHoc = async () => {
+        try {
+          setLoading(true);
+          const response = await axios.get(`${API_BASE_URL}/admin/monhoc/${monHocDuocChon.id}/lophoc`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setLopHoc(
+            response.data.map((lop) => ({
+              id: lop.lophoc_id,
+              ten: `Lớp ${lop.lophoc_id}`, // Customize based on your naming convention
+            }))
+          );
+        } catch (err) {
+          setError('Không thể tải danh sách lớp học');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchLopHoc();
+    } else {
+      setLopHoc([]);
+      setLopDuocChon(null);
+    }
+  }, [monHocDuocChon, token]);
+
+  // Fetch students when a class is selected
+  useEffect(() => {
+    if (lopDuocChon) {
+      const fetchSinhVien = async () => {
+        try {
+          setLoading(true);
+          const response = await axios.get(`${API_BASE_URL}/admin/lophoc/${lopDuocChon.id}/sinhvien`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          setSinhVien(
+            response.data.map((sv) => ({
+              id: sv.sinhvien_id,
+              hoTen: sv.hoten,
+              maSinhVien: sv.masv,
+              quaTrinh: sv.diem_qua_trinh || 0,
+              giuaKy: sv.diem_giua_ky || 0,
+              cuoiKy: sv.diem_cuoi_ky || 0,
+              tongKet: sv.diem_tong_ket || calculateTongKet(sv),
+            }))
+          );
+        } catch (err) {
+          setError('Không thể tải danh sách sinh viên');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchSinhVien();
+    } else {
+      setSinhVien([]);
+    }
+  }, [lopDuocChon, token]);
+
+  // Helper function to calculate tongKet (if not provided by backend)
+  const calculateTongKet = (sv) => {
+    const quaTrinh = sv.diem_qua_trinh || 0;
+    const giuaKy = sv.diem_giua_ky || 0;
+    const cuoiKy = sv.diem_cuoi_ky || 0;
+    // Example formula: 20% quaTrinh + 30% giuaKy + 50% cuoiKy
+    return ((quaTrinh * 0.2 + giuaKy * 0.3 + cuoiKy * 0.5) || 0).toFixed(1);
+  };
+
+  // Handle logout
   const dangXuat = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('role');
     navigate('/');
   };
 
+  // Color coding for grades
   const mauDiem = (diem) => {
-    return diem >= 8.5 ? 'text-green-600' :
-           diem >= 7.0 ? 'text-blue-600' :
-           diem >= 5.5 ? 'text-yellow-600' :
-           'text-red-600';
+    return diem >= 8.5
+      ? 'text-green-600'
+      : diem >= 7.0
+      ? 'text-blue-600'
+      : diem >= 5.5
+      ? 'text-yellow-600'
+      : 'text-red-600';
   };
 
+  // Result status
   const ketQua = (diem) => {
     return diem >= 5 ? 'Đạt' : 'Không đạt';
   };
 
+  // Color coding for result
   const mauKetQua = (diem) => {
     return diem >= 5 ? 'text-green-600' : 'text-red-600';
   };
 
-  const sinhVienDaLoc = lopDuocChon ? lopDuocChon.sinhVien.filter(sv => 
-    sv.maSinhVien.toLowerCase().includes(tuKhoaTimKiem.toLowerCase()) ||
-    sv.hoTen.toLowerCase().includes(tuKhoaTimKiem.toLowerCase())
-  ) : [];
+  // Filter students based on search keyword
+  const sinhVienDaLoc = sinhVien.filter(
+    (sv) =>
+      sv.maSinhVien.toLowerCase().includes(tuKhoaTimKiem.toLowerCase()) ||
+      sv.hoTen.toLowerCase().includes(tuKhoaTimKiem.toLowerCase())
+  );
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-700"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="text-center text-red-600 p-4">Lỗi: {error}</div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white">
@@ -138,7 +221,12 @@ function BangDieuKhienAdmin() {
               {danhSachKhoa.map((khoa) => (
                 <button
                   key={khoa.id}
-                  onClick={() => setKhoaDuocChon(khoa)}
+                  onClick={() => {
+                    setKhoaDuocChon(khoa);
+                    setMonHocDuocChon(null);
+                    setLopDuocChon(null);
+                    setTuKhoaTimKiem('');
+                  }}
                   className="p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition duration-150 ease-in-out"
                 >
                   <div className="flex items-center justify-between">
@@ -158,10 +246,14 @@ function BangDieuKhienAdmin() {
                 Môn học của khoa {khoaDuocChon.ten}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {khoaDuocChon.monHoc.map((mon) => (
+                {monHoc.map((mon) => (
                   <button
                     key={mon.id}
-                    onClick={() => setMonHocDuocChon(mon)}
+                    onClick={() => {
+                      setMonHocDuocChon(mon);
+                      setLopDuocChon(null);
+                      setTuKhoaTimKiem('');
+                    }}
                     className="p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition duration-150 ease-in-out"
                   >
                     <div className="flex items-center justify-between">
@@ -185,10 +277,13 @@ function BangDieuKhienAdmin() {
                 Lớp của môn {monHocDuocChon.ten}
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {monHocDuocChon.lop.map((lop) => (
+                {lopHoc.map((lop) => (
                   <button
                     key={lop.id}
-                    onClick={() => setLopDuocChon(lop)}
+                    onClick={() => {
+                      setLopDuocChon(lop);
+                      setTuKhoaTimKiem('');
+                    }}
                     className="p-4 bg-white border border-gray-200 rounded-lg hover:border-purple-500 hover:shadow-md transition duration-150 ease-in-out"
                   >
                     <div className="flex items-center justify-between">
@@ -242,19 +337,21 @@ function BangDieuKhienAdmin() {
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sv.maSinhVien}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{sv.hoTen}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`font-medium ${mauDiem(sv.quaTrinh)}`}>{sv.quaTrinh}</span>
+                            <span className={`font-medium ${mauDiem(sv.quaTrinh)}`}>{sv.quaTrinh || '-'}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`font-medium ${mauDiem(sv.giuaKy)}`}>{sv.giuaKy}</span>
+                            <span className={`font-medium ${mauDiem(sv.giuaKy)}`}>{sv.giuaKy || '-'}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`font-medium ${mauDiem(sv.cuoiKy)}`}>{sv.cuoiKy}</span>
+                            <span className={`font-medium ${mauDiem(sv.cuoiKy)}`}>{sv.cuoiKy || '-'}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`font-medium ${mauDiem(sv.tongKet)}`}>{sv.tongKet}</span>
+                            <span className={`font-medium ${mauDiem(sv.tongKet)}`}>{sv.tongKet || '-'}</span>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            <span className={`font-medium ${mauKetQua(sv.tongKet)}`}>{ketQua(sv.tongKet)}</span>
+                            <span className={`font-medium ${mauKetQua(sv.tongKet)}`}>
+                              {sv.tongKet ? ketQua(sv.tongKet) : '-'}
+                            </span>
                           </td>
                         </tr>
                       ))
