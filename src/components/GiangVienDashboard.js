@@ -16,6 +16,7 @@ function GiangVienDashboard() {
   const [tuKhoaTimKiem, setTuKhoaTimKiem] = useState('');
   const [dangChinhSua, setDangChinhSua] = useState(false);
   const [diemTamThoi, setDiemTamThoi] = useState({});
+  const [loiDiem, setLoiDiem] = useState({});
   const navigate = useNavigate();
 
   const token = localStorage.getItem('token');
@@ -109,6 +110,7 @@ function GiangVienDashboard() {
         id: sv.sinhvien_id,
         mssv: sv.masv,
         hoten: sv.hoten,
+        diemQT: sv.diem_qua_trinh || 0,
         diemGK: sv.diem_giua_ky || 0,
         diemCK: sv.diem_cuoi_ky || 0,
       })));
@@ -140,6 +142,7 @@ function GiangVienDashboard() {
     const diemMoi = {};
     students.forEach((sv) => {
       diemMoi[sv.id] = {
+        diemQT: sv.diemQT,
         diemGK: sv.diemGK,
         diemCK: sv.diemCK,
       };
@@ -149,12 +152,20 @@ function GiangVienDashboard() {
 
   // Save grades
   const luuDiem = async () => {
+    // Kiểm tra xem có lỗi điểm nào không
+    const coLoi = Object.values(loiDiem).some(loi => loi !== null);
+    if (coLoi) {
+      setError('Vui lòng kiểm tra lại các điểm không hợp lệ');
+      return;
+    }
+
     try {
       setLoading(true);
       const danhSachDiem = Object.entries(diemTamThoi).map(([sinhvien_id, diem]) => ({
         sinhvien_id,
-        diem_giua_ky: diem.diemGK,
-        diem_cuoi_ky: diem.diemCK,
+        diem_qua_trinh: diem.diemQT === '' ? null : diem.diemQT,
+        diem_giua_ky: diem.diemGK === '' ? null : diem.diemGK,
+        diem_cuoi_ky: diem.diemCK === '' ? null : diem.diemCK,
         ghi_chu: '',
       }));
       await axios.post(
@@ -165,8 +176,9 @@ function GiangVienDashboard() {
       setStudents((prev) =>
         prev.map((sv) => ({
           ...sv,
-          diemGK: diemTamThoi[sv.id].diemGK,
-          diemCK: diemTamThoi[sv.id].diemCK,
+          diemQT: diemTamThoi[sv.id]?.diemQT === '' ? null : diemTamThoi[sv.id]?.diemQT,
+          diemGK: diemTamThoi[sv.id]?.diemGK === '' ? null : diemTamThoi[sv.id]?.diemGK,
+          diemCK: diemTamThoi[sv.id]?.diemCK === '' ? null : diemTamThoi[sv.id]?.diemCK,
         }))
       );
       setDangChinhSua(false);
@@ -186,13 +198,58 @@ function GiangVienDashboard() {
 
   // Update temporary grades
   const capNhatDiem = (svId, loaiDiem, giaTri) => {
+    // Xóa lỗi cũ
+    setLoiDiem((prev) => ({
+      ...prev,
+      [`${svId}-${loaiDiem}`]: null
+    }));
+
+    // Kiểm tra giá trị hợp lệ
+    if (giaTri !== '') {
+      const diem = parseFloat(giaTri);
+      if (isNaN(diem) || diem < 0 || diem > 10) {
+        setLoiDiem((prev) => ({
+          ...prev,
+          [`${svId}-${loaiDiem}`]: 'Điểm phải từ 0 đến 10'
+        }));
+        return;
+      }
+    }
+
     setDiemTamThoi((prev) => ({
       ...prev,
       [svId]: {
         ...prev[svId],
-        [loaiDiem]: parseFloat(giaTri) || 0,
+        [loaiDiem]: giaTri === '' ? '' : parseFloat(giaTri),
       },
     }));
+  };
+
+  // Delete grade
+  const xoaDiem = (svId, loaiDiem) => {
+    setDiemTamThoi((prev) => ({
+      ...prev,
+      [svId]: {
+        ...prev[svId],
+        [loaiDiem]: '',
+      },
+    }));
+  };
+
+  // Helper function to calculate tongKet
+  const calculateTongKet = (diemQT, diemGK, diemCK) => {
+    // Example formula: 20% quaTrinh + 30% giuaKy + 50% cuoiKy
+    return ((diemQT * 0.2 + diemGK * 0.3 + diemCK * 0.5) || 0).toFixed(1);
+  };
+
+  // Helper function to determine result
+  const ketQua = (diem) => {
+    return diem >= 5 ? 'Đạt' : 'Không đạt';
+  };
+
+  // Helper function to determine result color
+  const mauKetQua = (diem) => {
+    return diem >= 5 ? 'text-green-600' : 'text-red-600';
   };
 
   if (loading) {
@@ -372,57 +429,148 @@ function GiangVienDashboard() {
                           Họ và tên
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Điểm GK
+                          Quá trình
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Điểm CK
+                          Giữa kỳ
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Cuối kỳ
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Tổng kết
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Kết quả
                         </th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {sinhVienDaLoc.length > 0 ? (
-                        sinhVienDaLoc.map((student, index) => (
-                          <tr key={student.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.mssv}</td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              {student.hoten}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {dangChinhSua ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="10"
-                                  step="0.1"
-                                  value={diemTamThoi[student.id]?.diemGK || student.diemGK}
-                                  onChange={(e) => capNhatDiem(student.id, 'diemGK', e.target.value)}
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-150 ease-in-out"
-                                />
-                              ) : (
-                                student.diemGK || '-'
-                              )}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {dangChinhSua ? (
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="10"
-                                  step="0.1"
-                                  value={diemTamThoi[student.id]?.diemCK || student.diemCK}
-                                  onChange={(e) => capNhatDiem(student.id, 'diemCK', e.target.value)}
-                                  className="w-20 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition duration-150 ease-in-out"
-                                />
-                              ) : (
-                                student.diemCK || '-'
-                              )}
-                            </td>
-                          </tr>
-                        ))
+                        sinhVienDaLoc.map((student, index) => {
+                          const tongKet = calculateTongKet(
+                            dangChinhSua ? diemTamThoi[student.id]?.diemQT : student.diemQT,
+                            dangChinhSua ? diemTamThoi[student.id]?.diemGK : student.diemGK,
+                            dangChinhSua ? diemTamThoi[student.id]?.diemCK : student.diemCK
+                          );
+                          return (
+                            <tr key={student.id} className="hover:bg-gray-50 transition duration-150 ease-in-out">
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{student.mssv}</td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {student.hoten}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {dangChinhSua ? (
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        step="0.1"
+                                        value={diemTamThoi[student.id]?.diemQT ?? ''}
+                                        onChange={(e) => capNhatDiem(student.id, 'diemQT', e.target.value)}
+                                        className={`w-20 px-2 py-1 border rounded focus:outline-none focus:ring-2 transition duration-150 ease-in-out ${
+                                          loiDiem[`${student.id}-diemQT`] 
+                                            ? 'border-red-500 focus:ring-red-500' 
+                                            : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                                        }`}
+                                      />
+                                      <button
+                                        onClick={() => xoaDiem(student.id, 'diemQT')}
+                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-150 ease-in-out"
+                                      >
+                                        Xóa
+                                      </button>
+                                    </div>
+                                    {loiDiem[`${student.id}-diemQT`] && (
+                                      <span className="text-xs text-red-500">{loiDiem[`${student.id}-diemQT`]}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  student.diemQT || '-'
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {dangChinhSua ? (
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        step="0.1"
+                                        value={diemTamThoi[student.id]?.diemGK ?? ''}
+                                        onChange={(e) => capNhatDiem(student.id, 'diemGK', e.target.value)}
+                                        className={`w-20 px-2 py-1 border rounded focus:outline-none focus:ring-2 transition duration-150 ease-in-out ${
+                                          loiDiem[`${student.id}-diemGK`] 
+                                            ? 'border-red-500 focus:ring-red-500' 
+                                            : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                                        }`}
+                                      />
+                                      <button
+                                        onClick={() => xoaDiem(student.id, 'diemGK')}
+                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-150 ease-in-out"
+                                      >
+                                        Xóa
+                                      </button>
+                                    </div>
+                                    {loiDiem[`${student.id}-diemGK`] && (
+                                      <span className="text-xs text-red-500">{loiDiem[`${student.id}-diemGK`]}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  student.diemGK || '-'
+                                )}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {dangChinhSua ? (
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        max="10"
+                                        step="0.1"
+                                        value={diemTamThoi[student.id]?.diemCK ?? ''}
+                                        onChange={(e) => capNhatDiem(student.id, 'diemCK', e.target.value)}
+                                        className={`w-20 px-2 py-1 border rounded focus:outline-none focus:ring-2 transition duration-150 ease-in-out ${
+                                          loiDiem[`${student.id}-diemCK`] 
+                                            ? 'border-red-500 focus:ring-red-500' 
+                                            : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
+                                        }`}
+                                      />
+                                      <button
+                                        onClick={() => xoaDiem(student.id, 'diemCK')}
+                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-150 ease-in-out"
+                                      >
+                                        Xóa
+                                      </button>
+                                    </div>
+                                    {loiDiem[`${student.id}-diemCK`] && (
+                                      <span className="text-xs text-red-500">{loiDiem[`${student.id}-diemCK`]}</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  student.diemCK || '-'
+                                )}
+                              </td>
+                               <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span className={`font-medium ${mauKetQua(tongKet)}`}>{tongKet || '-'}</span>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                <span className={`font-medium ${mauKetQua(tongKet)}`}>
+                                  {tongKet ? ketQua(tongKet) : '-'}
+                                </span>
+                              </td>
+                             
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
+                          <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
                             {tuKhoaTimKiem ? 'Không tìm thấy sinh viên phù hợp' : 'Không có sinh viên nào trong lớp'}
                           </td>
                         </tr>
