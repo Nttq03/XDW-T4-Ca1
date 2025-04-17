@@ -225,6 +225,17 @@ function GiangVienDashboard() {
     }));
   };
 
+  // Delete grade
+  const xoaDiem = (svId, loaiDiem) => {
+    setDiemTamThoi((prev) => ({
+      ...prev,
+      [svId]: {
+        ...prev[svId],
+        [loaiDiem]: '',
+      },
+    }));
+  };
+
   // Helper function to calculate tongKet
   const calculateTongKet = (diemQT, diemGK, diemCK) => {
     // Example formula: 20% quaTrinh + 30% giuaKy + 50% cuoiKy
@@ -452,7 +463,7 @@ function GiangVienDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {dangChinhSua ? (
                                   <div className="flex flex-col space-y-1">
-                                    <div className="flex items-center">
+                                    <div className="flex items-center space-x-2">
                                       <input
                                         type="number"
                                         min="0"
@@ -466,6 +477,12 @@ function GiangVienDashboard() {
                                             : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
                                         }`}
                                       />
+                                      <button
+                                        onClick={() => xoaDiem(student.id, 'diemQT')}
+                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-150 ease-in-out"
+                                      >
+                                        Xóa
+                                      </button>
                                     </div>
                                     {loiDiem[`${student.id}-diemQT`] && (
                                       <span className="text-xs text-red-500">{loiDiem[`${student.id}-diemQT`]}</span>
@@ -478,7 +495,7 @@ function GiangVienDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {dangChinhSua ? (
                                   <div className="flex flex-col space-y-1">
-                                    <div className="flex items-center">
+                                    <div className="flex items-center space-x-2">
                                       <input
                                         type="number"
                                         min="0"
@@ -492,6 +509,12 @@ function GiangVienDashboard() {
                                             : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
                                         }`}
                                       />
+                                      <button
+                                        onClick={() => xoaDiem(student.id, 'diemGK')}
+                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-150 ease-in-out"
+                                      >
+                                        Xóa
+                                      </button>
                                     </div>
                                     {loiDiem[`${student.id}-diemGK`] && (
                                       <span className="text-xs text-red-500">{loiDiem[`${student.id}-diemGK`]}</span>
@@ -504,7 +527,7 @@ function GiangVienDashboard() {
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 {dangChinhSua ? (
                                   <div className="flex flex-col space-y-1">
-                                    <div className="flex items-center">
+                                    <div className="flex items-center space-x-2">
                                       <input
                                         type="number"
                                         min="0"
@@ -518,6 +541,12 @@ function GiangVienDashboard() {
                                             : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
                                         }`}
                                       />
+                                      <button
+                                        onClick={() => xoaDiem(student.id, 'diemCK')}
+                                        className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition duration-150 ease-in-out"
+                                      >
+                                        Xóa
+                                      </button>
                                     </div>
                                     {loiDiem[`${student.id}-diemCK`] && (
                                       <span className="text-xs text-red-500">{loiDiem[`${student.id}-diemCK`]}</span>
