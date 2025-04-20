@@ -1,84 +1,17 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React from 'react';
 import { FaUser, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { useLogin } from '../hooks/useLogin';
 
 function Login() {
-  const [credentials, setCredentials] = useState({ username: '', password: '' });
-  const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    const token = localStorage.getItem('token');
-    const role = localStorage.getItem('role');
-
-    if (token && role) {
-      switch(role) {
-        case 'Admin':
-          navigate('/admin');
-          break;
-        case 'GiangVien':
-          navigate('/giangvien');
-          break;
-        case 'SinhVien':
-          navigate('/sinhvien');
-          break;
-        default:
-          localStorage.removeItem('token');
-          localStorage.removeItem('role');
-          localStorage.removeItem('userId');
-      }
-    }
-  }, [navigate]);
-
-  const handleLogin = () => {
-    setIsLoading(true);
-    fetch('https://apiwebsa.onrender.com/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials),
-    })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Đăng nhập thất bại');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        if (data.user) {
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('role', data.user.role);
-          localStorage.setItem('userId', data.user.user_id);
-          setError('');
-
-          switch(data.user.role) {
-            case 'Admin':
-              navigate('/admin');
-              break;
-            case 'GiangVien':
-              navigate('/giangvien');
-              break;
-            case 'SinhVien':
-              navigate('/sinhvien');
-              break;
-            default:
-              throw new Error('Role không hợp lệ');
-          }
-        } else {
-          throw new Error('Thông tin người dùng không hợp lệ');
-        }
-      })
-      .catch((err) => {
-        setError(err.message);
-        localStorage.removeItem('token');
-        localStorage.removeItem('role');
-        localStorage.removeItem('userId');
-      })
-      .finally(() => {
-        setIsLoading(false);
-      });
-  };
+  const {
+    credentials,
+    error,
+    showPassword,
+    isLoading,
+    handleLogin,
+    updateCredentials,
+    togglePasswordVisibility
+  } = useLogin();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-50 to-blue-100 p-4">
@@ -101,7 +34,7 @@ function Login() {
               <input
                 type="text"
                 value={credentials.username}
-                onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+                onChange={(e) => updateCredentials('username', e.target.value)}
                 className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300 placeholder-gray-400 text-gray-900"
                 placeholder="Tên đăng nhập"
               />
@@ -114,13 +47,13 @@ function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 value={credentials.password}
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                onChange={(e) => updateCredentials('password', e.target.value)}
                 className="block w-full pl-10 pr-12 py-3 border border-gray-200 rounded-lg bg-gray-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300 placeholder-gray-400 text-gray-900"
                 placeholder="Mật khẩu"
               />
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={togglePasswordVisibility}
                 className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-indigo-500 transition-colors"
               >
                 {showPassword ? (

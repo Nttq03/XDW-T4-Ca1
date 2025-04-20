@@ -152,43 +152,61 @@ function GiangVienDashboard() {
 
   // Save grades
   const luuDiem = async () => {
-    // Kiểm tra xem có lỗi điểm nào không
     const coLoi = Object.values(loiDiem).some(loi => loi !== null);
     if (coLoi) {
       setError('Vui lòng kiểm tra lại các điểm không hợp lệ');
       return;
     }
-
+  
     try {
       setLoading(true);
+      // Cấu trúc lại dữ liệu theo đúng yêu cầu của API
       const danhSachDiem = Object.entries(diemTamThoi).map(([sinhvien_id, diem]) => ({
-        sinhvien_id,
-        diem_qua_trinh: diem.diemQT === '' ? null : diem.diemQT,
-        diem_giua_ky: diem.diemGK === '' ? null : diem.diemGK,
-        diem_cuoi_ky: diem.diemCK === '' ? null : diem.diemCK,
-        ghi_chu: '',
+        sinhvien_id: sinhvien_id,
+        lophoc_id: selectedRoom.id,
+        monhoc_id: selectedSubject.id,
+        diem_qua_trinh: diem.diemQT === '' ? null : Number(diem.diemQT),
+        diem_giua_ky: diem.diemGK === '' ? null : Number(diem.diemGK),
+        diem_cuoi_ky: diem.diemCK === '' ? null : Number(diem.diemCK)
       }));
-      await axios.post(
-        `${API_BASE_URL}/giangvien/diem`,
-        { lophoc_id: selectedRoom.id, danh_sach_diem: danhSachDiem },
-        { headers: { Authorization: `Bearer ${token}` } }
+  
+      // Gọi API cập nhật điểm
+      await axios.put(
+        `${API_BASE_URL}/giangvien/diem/${selectedRoom.id}`,
+        { danh_sach_diem: danhSachDiem },
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          } 
+        }
       );
+  
+      // Cập nhật state local sau khi lưu thành công
       setStudents((prev) =>
         prev.map((sv) => ({
           ...sv,
-          diemQT: diemTamThoi[sv.id]?.diemQT === '' ? null : diemTamThoi[sv.id]?.diemQT,
-          diemGK: diemTamThoi[sv.id]?.diemGK === '' ? null : diemTamThoi[sv.id]?.diemGK,
-          diemCK: diemTamThoi[sv.id]?.diemCK === '' ? null : diemTamThoi[sv.id]?.diemCK,
+          diemQT: diemTamThoi[sv.id]?.diemQT ?? null,
+          diemGK: diemTamThoi[sv.id]?.diemGK ?? null,
+          diemCK: diemTamThoi[sv.id]?.diemCK ?? null,
         }))
       );
+  
       setDangChinhSua(false);
       setDiemTamThoi({});
+      setError(null);
+  
+      // Hiển thị thông báo thành công
+      alert('Lưu điểm thành công!');
+  
     } catch (err) {
-      setError('Không thể lưu điểm');
+      console.error('Lỗi khi lưu điểm:', err);
+      setError(err.response?.data?.message || 'Không thể lưu điểm');
     } finally {
       setLoading(false);
     }
   };
+  
 
   // Cancel editing
   const huyChinhSua = () => {
